@@ -1,0 +1,101 @@
+resource "azurerm_resource_group" "this" {
+  name     = var.resource_group_name
+  location = var.location
+}
+
+resource "azurerm_storage_account" "datalake" {
+  name                     = var.storage_account_name
+  resource_group_name      = azurerm_resource_group.this.name
+  location                 = azurerm_resource_group.this.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  account_kind             = "StorageV2"
+  access_tier              = "Hot"
+
+  min_tls_version                  = "TLS1_0"
+  https_traffic_only_enabled       = true
+  allow_nested_items_to_be_public  = false
+  cross_tenant_replication_enabled = false
+}
+
+resource "azurerm_databricks_workspace" "this" {
+  name                = var.databricks_workspace_name
+  resource_group_name = azurerm_resource_group.this.name
+  location            = azurerm_resource_group.this.location
+  sku                 = var.databricks_sku
+}
+
+# --- Unity Catalog ---
+
+resource "azurerm_databricks_access_connector" "unity_catalog" {
+  name                = "${var.databricks_workspace_name}-uc-connector"
+  resource_group_name = azurerm_resource_group.this.name
+  location            = azurerm_resource_group.this.location
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
+# Dedicated ADLS Gen2 account for the metastore root storage (hierarchical
+# namespace is required by Unity Catalog and can't be enabled retroactively
+# on the existing "datalake" storage account without recreating it).
+resource "azurerm_storage_account" "unity_catalog" {
+  name                     = var.unity_catalog_storage_account_name
+  resource_group_name      = azurerm_resource_group.this.name
+  location                 = azurerm_resource_group.this.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  account_kind             = "StorageV2"
+  is_hns_enabled           = true
+
+  min_tls_version                  = "TLS1_2"
+  https_traffic_only_enabled       = true
+  allow_nested_items_to_be_public  = false
+  cross_tenant_replication_enabled = false
+}
+
+resource "azurerm_storage_container" "unity_catalog" {
+  name                  = "metastore"
+  storage_account_name  = azurerm_storage_account.unity_catalog.name
+  container_access_type = "private"
+}
+
+resource "azurerm_role_assignment" "unity_catalog_storage" {
+  scope                = azurerm_storage_account.unity_catalog.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_databricks_access_connector.unity_catalog.identity[0].principal_id
+}
+
+resource "databricks_metastore" "this" {
+  count = var.enable_unity_catalog ? 1 : 0
+
+  provider      = databricks.accounts
+  name          = var.unity_catalog_metastore_name
+  storage_root  = "abfss://${azurerm_storage_container.unity_catalog.name}@${azurerm_storage_account.unity_catalog.name}.dfs.core.windows.net/"
+  region        = azurerm_resource_group.this.location
+  force_destroy = true
+}
+
+resource "databricks_metastore_data_access" "this" {
+  count = var.enable_unity_catalog ? 1 : 0
+
+  provider     = databricks.accounts
+  metastore_id = databricks_metastore.this[0].id
+  name         = azurerm_databricks_access_connector.unity_catalog.name
+  is_default   = true
+
+  azure_managed_identity {
+    access_connector_id = azurerm_databricks_access_connector.unity_catalog.id
+  }
+}
+
+resource "databricks_metastore_assignment" "this" {
+  count = var.enable_unity_catalog ? 1 : 0
+
+  provider     = databricks.accounts
+  metastore_id = databricks_metastore.this[0].id
+  workspace_id = azurerm_databricks_workspace.this.workspace_id
+
+  depends_on = [databricks_metastore_data_access.this]
+}
