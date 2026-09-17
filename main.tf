@@ -54,8 +54,11 @@ resource "azurerm_storage_queue" "snowflake_notifications" {
 }
 
 resource "azurerm_eventgrid_system_topic" "snowflake" {
-  name                   = local.snowflake_eventgrid_topic_name
-  resource_group_name    = azurerm_resource_group.snowflake.name
+  name = local.snowflake_eventgrid_topic_name
+  # Azure requires a system topic's resource group to match its source
+  # resource's, so this has to live with the storage account (azurerm_resource_group.this),
+  # not in snowflakeRG.
+  resource_group_name    = azurerm_resource_group.this.name
   location               = azurerm_resource_group.this.location
   source_arm_resource_id = azurerm_storage_account.datalake.id
   topic_type             = "Microsoft.Storage.StorageAccounts"
@@ -68,7 +71,7 @@ resource "azurerm_eventgrid_system_topic" "snowflake" {
 resource "azurerm_eventgrid_system_topic_event_subscription" "snowflake_notifications" {
   name                = "snowflake-blob-created"
   system_topic        = azurerm_eventgrid_system_topic.snowflake.name
-  resource_group_name = azurerm_resource_group.snowflake.name
+  resource_group_name = azurerm_resource_group.this.name
 
   included_event_types = ["Microsoft.Storage.BlobCreated"]
 
