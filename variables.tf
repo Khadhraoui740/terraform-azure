@@ -39,6 +39,12 @@ variable "snowflake_resource_group_name" {
   default     = "snowflakeRG"
 }
 
+variable "snowflake_storage_account_name" {
+  description = "Name of the dedicated storage account Snowflake reads/writes via external stage, kept separate from the Databricks data lake"
+  type        = string
+  default     = "snowflakestg"
+}
+
 variable "fabric_resource_group_name" {
   description = "Name of the resource group holding Azure resources used by Microsoft Fabric"
   type        = string
