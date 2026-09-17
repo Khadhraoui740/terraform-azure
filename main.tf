@@ -8,10 +8,11 @@ locals {
   # storage accounts), only allow lowercase letters/digits, and this
   # subscription already had "fabriccapacitydev" taken by someone else, so
   # derive a suffix from the subscription ID instead of guessing a free name.
-  fabric_capacity_unique_suffix = substr(sha1(var.subscription_id), 0, 6)
-  fabric_capacity_name          = "fabriccapacity${local.fabric_capacity_unique_suffix}${var.environment == "dev" ? "dev" : ""}"
-  databricks_workspace_name     = "${var.databricks_workspace_name}${local.name_suffix}"
-  unity_catalog_metastore_name  = "${var.unity_catalog_metastore_name}${local.name_suffix}"
+  unique_suffix                  = substr(sha1(var.subscription_id), 0, 6)
+  fabric_capacity_name           = "fabriccapacity${local.unique_suffix}${var.environment == "dev" ? "dev" : ""}"
+  snowflake_storage_account_name = "${var.snowflake_storage_account_name}${local.unique_suffix}${var.environment == "dev" ? "dev" : ""}"
+  databricks_workspace_name      = "${var.databricks_workspace_name}${local.name_suffix}"
+  unity_catalog_metastore_name   = "${var.unity_catalog_metastore_name}${local.name_suffix}"
   # Storage account names allow only lowercase letters/digits, so append a
   # plain "dev" instead of the hyphenated suffix used elsewhere.
   storage_account_name               = var.environment == "dev" ? "${var.storage_account_name}dev" : var.storage_account_name
@@ -34,15 +35,34 @@ resource "azurerm_resource_group" "snowflake" {
   location = var.location
 }
 
-# Dedicated container in the shared data lake for data Snowflake reads via
-# an external stage (storage integration). Access is granted to Snowflake's
-# own AAD app after the storage integration is created on the Snowflake side
-# (DESC INTEGRATION gives the consent URL / app to grant Storage Blob Data
-# Reader on this container) — that grant isn't in Terraform since it depends
-# on values that only exist once the Snowflake-side object is created.
+# Dedicated storage account for Snowflake, kept separate from the Databricks
+# data lake so it lives entirely in snowflakeRG (an Event Grid system topic
+# must share its source resource's resource group, which would otherwise
+# force these resources into the Databricks RG).
+resource "azurerm_storage_account" "snowflake" {
+  name                     = local.snowflake_storage_account_name
+  resource_group_name      = azurerm_resource_group.snowflake.name
+  location                 = azurerm_resource_group.snowflake.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  account_kind             = "StorageV2"
+  access_tier              = "Hot"
+
+  min_tls_version                  = "TLS1_2"
+  https_traffic_only_enabled       = true
+  allow_nested_items_to_be_public  = false
+  cross_tenant_replication_enabled = false
+}
+
+# Data Snowflake reads via an external stage (storage integration). Access is
+# granted to Snowflake's own AAD app after the storage integration is created
+# on the Snowflake side (DESC INTEGRATION gives the consent URL / app to
+# grant Storage Blob Data Reader on this container) — that grant isn't in
+# Terraform since it depends on values that only exist once the Snowflake-
+# side object is created.
 resource "azurerm_storage_container" "snowflake_stage" {
   name                  = local.snowflake_stage_container_name
-  storage_account_name  = azurerm_storage_account.datalake.name
+  storage_account_name  = azurerm_storage_account.snowflake.name
   container_access_type = "private"
 }
 
@@ -50,17 +70,14 @@ resource "azurerm_storage_container" "snowflake_stage" {
 # events, so ingestion is auto-triggered instead of polled.
 resource "azurerm_storage_queue" "snowflake_notifications" {
   name                 = local.snowflake_notification_queue_name
-  storage_account_name = azurerm_storage_account.datalake.name
+  storage_account_name = azurerm_storage_account.snowflake.name
 }
 
 resource "azurerm_eventgrid_system_topic" "snowflake" {
-  name = local.snowflake_eventgrid_topic_name
-  # Azure requires a system topic's resource group to match its source
-  # resource's, so this has to live with the storage account (azurerm_resource_group.this),
-  # not in snowflakeRG.
-  resource_group_name    = azurerm_resource_group.this.name
-  location               = azurerm_resource_group.this.location
-  source_arm_resource_id = azurerm_storage_account.datalake.id
+  name                   = local.snowflake_eventgrid_topic_name
+  resource_group_name    = azurerm_resource_group.snowflake.name
+  location               = azurerm_resource_group.snowflake.location
+  source_arm_resource_id = azurerm_storage_account.snowflake.id
   topic_type             = "Microsoft.Storage.StorageAccounts"
 }
 
@@ -71,7 +88,7 @@ resource "azurerm_eventgrid_system_topic" "snowflake" {
 resource "azurerm_eventgrid_system_topic_event_subscription" "snowflake_notifications" {
   name                = "snowflake-blob-created"
   system_topic        = azurerm_eventgrid_system_topic.snowflake.name
-  resource_group_name = azurerm_resource_group.this.name
+  resource_group_name = azurerm_resource_group.snowflake.name
 
   included_event_types = ["Microsoft.Storage.BlobCreated"]
 
@@ -80,7 +97,7 @@ resource "azurerm_eventgrid_system_topic_event_subscription" "snowflake_notifica
   }
 
   storage_queue_endpoint {
-    storage_account_id = azurerm_storage_account.datalake.id
+    storage_account_id = azurerm_storage_account.snowflake.id
     queue_name         = azurerm_storage_queue.snowflake_notifications.name
   }
 }
