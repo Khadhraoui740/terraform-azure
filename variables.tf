@@ -54,7 +54,9 @@ variable "fabric_capacity_sku" {
 variable "fabric_capacity_admin_members" {
   description = "UPNs of the Azure AD users administering the Fabric Capacity. Must be accounts in the same tenant as the subscription."
   type        = list(string)
-  default     = ["snowflaketraining20261@outlook.com"]
+  # snowflaketraining20261@outlook.com is a personal MSA guest, not a native
+  # Azure AD account, and Fabric rejects personal accounts as admins.
+  default = ["fabricadmin@snowflaketraining20261outlo.onmicrosoft.com"]
 }
 
 variable "storage_account_name" {
