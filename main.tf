@@ -1,10 +1,22 @@
+locals {
+  name_suffix = var.environment == "dev" ? "-dev" : ""
+
+  resource_group_name          = "${var.resource_group_name}${local.name_suffix}"
+  databricks_workspace_name    = "${var.databricks_workspace_name}${local.name_suffix}"
+  unity_catalog_metastore_name = "${var.unity_catalog_metastore_name}${local.name_suffix}"
+  # Storage account names allow only lowercase letters/digits, so append a
+  # plain "dev" instead of the hyphenated suffix used elsewhere.
+  storage_account_name               = var.environment == "dev" ? "${var.storage_account_name}dev" : var.storage_account_name
+  unity_catalog_storage_account_name = var.environment == "dev" ? "${var.unity_catalog_storage_account_name}dev" : var.unity_catalog_storage_account_name
+}
+
 resource "azurerm_resource_group" "this" {
-  name     = var.resource_group_name
+  name     = local.resource_group_name
   location = var.location
 }
 
 resource "azurerm_storage_account" "datalake" {
-  name                     = var.storage_account_name
+  name                     = local.storage_account_name
   resource_group_name      = azurerm_resource_group.this.name
   location                 = azurerm_resource_group.this.location
   account_tier             = "Standard"
@@ -19,7 +31,7 @@ resource "azurerm_storage_account" "datalake" {
 }
 
 resource "azurerm_databricks_workspace" "this" {
-  name                = var.databricks_workspace_name
+  name                = local.databricks_workspace_name
   resource_group_name = azurerm_resource_group.this.name
   location            = azurerm_resource_group.this.location
   sku                 = var.databricks_sku
@@ -28,7 +40,7 @@ resource "azurerm_databricks_workspace" "this" {
 # --- Unity Catalog ---
 
 resource "azurerm_databricks_access_connector" "unity_catalog" {
-  name                = "${var.databricks_workspace_name}-uc-connector"
+  name                = "${local.databricks_workspace_name}-uc-connector"
   resource_group_name = azurerm_resource_group.this.name
   location            = azurerm_resource_group.this.location
 
@@ -41,7 +53,7 @@ resource "azurerm_databricks_access_connector" "unity_catalog" {
 # namespace is required by Unity Catalog and can't be enabled retroactively
 # on the existing "datalake" storage account without recreating it).
 resource "azurerm_storage_account" "unity_catalog" {
-  name                     = var.unity_catalog_storage_account_name
+  name                     = local.unity_catalog_storage_account_name
   resource_group_name      = azurerm_resource_group.this.name
   location                 = azurerm_resource_group.this.location
   account_tier             = "Standard"
@@ -71,7 +83,7 @@ resource "databricks_metastore" "this" {
   count = var.enable_unity_catalog ? 1 : 0
 
   provider      = databricks.accounts
-  name          = var.unity_catalog_metastore_name
+  name          = local.unity_catalog_metastore_name
   storage_root  = "abfss://${azurerm_storage_container.unity_catalog.name}@${azurerm_storage_account.unity_catalog.name}.dfs.core.windows.net/"
   region        = azurerm_resource_group.this.location
   force_destroy = true
