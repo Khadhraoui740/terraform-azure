@@ -39,6 +39,12 @@ variable "snowflake_resource_group_name" {
   default     = "snowflakeRG"
 }
 
+variable "fabric_resource_group_name" {
+  description = "Name of the resource group holding Azure resources used by Microsoft Fabric"
+  type        = string
+  default     = "fabricRG"
+}
+
 variable "storage_account_name" {
   description = "Name of the storage account"
   type        = string
