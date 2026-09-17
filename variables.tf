@@ -1,3 +1,14 @@
+variable "environment" {
+  description = "Deployment environment (dev or prod). Dev resources get a '-dev' suffix so they never collide with the production resources; prod keeps the original names to match the resources already deployed."
+  type        = string
+  default     = "prod"
+
+  validation {
+    condition     = contains(["dev", "prod"], var.environment)
+    error_message = "environment must be \"dev\" or \"prod\"."
+  }
+}
+
 variable "subscription_id" {
   description = "Azure subscription ID"
   type        = string
@@ -20,6 +31,12 @@ variable "location" {
   description = "Azure region"
   type        = string
   default     = "eastus"
+}
+
+variable "snowflake_resource_group_name" {
+  description = "Name of the resource group holding Azure resources used by Snowflake (e.g. storage integration)"
+  type        = string
+  default     = "snowflakeRG"
 }
 
 variable "storage_account_name" {
