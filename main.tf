@@ -4,8 +4,11 @@ locals {
   resource_group_name           = "${var.resource_group_name}${local.name_suffix}"
   snowflake_resource_group_name = "${var.snowflake_resource_group_name}${local.name_suffix}"
   fabric_resource_group_name    = "${var.fabric_resource_group_name}${local.name_suffix}"
-  databricks_workspace_name     = "${var.databricks_workspace_name}${local.name_suffix}"
-  unity_catalog_metastore_name  = "${var.unity_catalog_metastore_name}${local.name_suffix}"
+  # Fabric capacity names allow only lowercase letters/digits, so append a
+  # plain "dev" instead of the hyphenated suffix used elsewhere.
+  fabric_capacity_name         = var.environment == "dev" ? "fabriccapacitydev" : "fabriccapacity"
+  databricks_workspace_name    = "${var.databricks_workspace_name}${local.name_suffix}"
+  unity_catalog_metastore_name = "${var.unity_catalog_metastore_name}${local.name_suffix}"
   # Storage account names allow only lowercase letters/digits, so append a
   # plain "dev" instead of the hyphenated suffix used elsewhere.
   storage_account_name               = var.environment == "dev" ? "${var.storage_account_name}dev" : var.storage_account_name
@@ -29,6 +32,28 @@ resource "azurerm_resource_group" "snowflake" {
 resource "azurerm_resource_group" "fabric" {
   name     = local.fabric_resource_group_name
   location = var.location
+}
+
+# No azurerm resource for Fabric Capacity exists on the azurerm 3.x provider
+# line this config is pinned to (it needs 4.80+, a breaking major upgrade),
+# so it's created via azapi instead against the ARM API directly.
+resource "azapi_resource" "fabric_capacity" {
+  type      = "Microsoft.Fabric/capacities@2023-11-01"
+  name      = local.fabric_capacity_name
+  parent_id = azurerm_resource_group.fabric.id
+  location  = var.location
+
+  body = {
+    properties = {
+      administration = {
+        members = var.fabric_capacity_admin_members
+      }
+    }
+    sku = {
+      name = var.fabric_capacity_sku
+      tier = "Fabric"
+    }
+  }
 }
 
 resource "azurerm_storage_account" "datalake" {

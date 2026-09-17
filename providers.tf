@@ -10,6 +10,10 @@ terraform {
       source  = "databricks/databricks"
       version = "~> 1.65"
     }
+    azapi = {
+      source  = "azure/azapi"
+      version = "~> 1.15"
+    }
   }
 
   # Remote state shared between local runs and CI. Bootstrapped once outside
