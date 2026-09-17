@@ -28,6 +28,7 @@ jobs:
     outputs:
       environment: ${{ steps.vars.outputs.environment }}
       backend_key: ${{ steps.vars.outputs.backend_key }}
+      tf_environment: ${{ steps.vars.outputs.tf_environment }}
     steps:
       - name: Resolve target branch, environment and state file
         id: vars
@@ -41,15 +42,19 @@ jobs:
           if [ "$TARGET" = "main" ]; then
             echo "environment=production" >> "$GITHUB_OUTPUT"
             echo "backend_key=terraform-azure.tfstate" >> "$GITHUB_OUTPUT"
+            echo "tf_environment=prod" >> "$GITHUB_OUTPUT"
           else
             echo "environment=dev" >> "$GITHUB_OUTPUT"
             echo "backend_key=terraform-azure-dev.tfstate" >> "$GITHUB_OUTPUT"
+            echo "tf_environment=dev" >> "$GITHUB_OUTPUT"
           fi
 
   plan:
     name: Validate & Plan
     needs: setup
     runs-on: ubuntu-latest
+    env:
+      TF_VAR_environment: ${{ needs.setup.outputs.tf_environment }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -122,6 +127,8 @@ jobs:
     # approval — configure required reviewers on the environment in
     # GitHub repo Settings > Environments.
     environment: ${{ needs.setup.outputs.environment }}
+    env:
+      TF_VAR_environment: ${{ needs.setup.outputs.tf_environment }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

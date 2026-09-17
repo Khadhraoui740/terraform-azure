@@ -1,3 +1,14 @@
+variable "environment" {
+  description = "Deployment environment (dev or prod). Dev resources get a '-dev' suffix so they never collide with the production resources; prod keeps the original names to match the resources already deployed."
+  type        = string
+  default     = "prod"
+
+  validation {
+    condition     = contains(["dev", "prod"], var.environment)
+    error_message = "environment must be \"dev\" or \"prod\"."
+  }
+}
+
 variable "subscription_id" {
   description = "Azure subscription ID"
   type        = string
