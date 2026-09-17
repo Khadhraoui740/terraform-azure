@@ -45,6 +45,18 @@ variable "fabric_resource_group_name" {
   default     = "fabricRG"
 }
 
+variable "fabric_capacity_sku" {
+  description = "SKU (size) of the Fabric Capacity, e.g. F2, F4, F8. Billed continuously while running."
+  type        = string
+  default     = "F2"
+}
+
+variable "fabric_capacity_admin_members" {
+  description = "UPNs of the Azure AD users administering the Fabric Capacity. Must be accounts in the same tenant as the subscription."
+  type        = list(string)
+  default     = ["snowflaketraining20261@outlook.com"]
+}
+
 variable "storage_account_name" {
   description = "Name of the storage account"
   type        = string
