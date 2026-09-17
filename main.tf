@@ -1,9 +1,10 @@
 locals {
   name_suffix = var.environment == "dev" ? "-dev" : ""
 
-  resource_group_name          = "${var.resource_group_name}${local.name_suffix}"
-  databricks_workspace_name    = "${var.databricks_workspace_name}${local.name_suffix}"
-  unity_catalog_metastore_name = "${var.unity_catalog_metastore_name}${local.name_suffix}"
+  resource_group_name           = "${var.resource_group_name}${local.name_suffix}"
+  snowflake_resource_group_name = "${var.snowflake_resource_group_name}${local.name_suffix}"
+  databricks_workspace_name     = "${var.databricks_workspace_name}${local.name_suffix}"
+  unity_catalog_metastore_name  = "${var.unity_catalog_metastore_name}${local.name_suffix}"
   # Storage account names allow only lowercase letters/digits, so append a
   # plain "dev" instead of the hyphenated suffix used elsewhere.
   storage_account_name               = var.environment == "dev" ? "${var.storage_account_name}dev" : var.storage_account_name
@@ -12,6 +13,13 @@ locals {
 
 resource "azurerm_resource_group" "this" {
   name     = local.resource_group_name
+  location = var.location
+}
+
+# --- Snowflake ---
+
+resource "azurerm_resource_group" "snowflake" {
+  name     = local.snowflake_resource_group_name
   location = var.location
 }
 

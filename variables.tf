@@ -33,6 +33,12 @@ variable "location" {
   default     = "eastus"
 }
 
+variable "snowflake_resource_group_name" {
+  description = "Name of the resource group holding Azure resources used by Snowflake (e.g. storage integration)"
+  type        = string
+  default     = "snowflakeRG"
+}
+
 variable "storage_account_name" {
   description = "Name of the storage account"
   type        = string
