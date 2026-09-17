@@ -29,3 +29,23 @@ output "unity_catalog_storage_account_id" {
 output "unity_catalog_metastore_id" {
   value = var.enable_unity_catalog ? databricks_metastore.this[0].id : null
 }
+
+output "snowflake_storage_account_name" {
+  value = azurerm_storage_account.snowflake.name
+}
+
+output "snowflake_stage_container_name" {
+  value = azurerm_storage_container.snowflake_stage.name
+}
+
+output "snowflake_notification_queue_name" {
+  value = azurerm_storage_queue.snowflake_notifications.name
+}
+
+output "snowflake_notification_queue_id" {
+  value = azurerm_storage_queue.snowflake_notifications.id
+}
+
+output "azure_tenant_id" {
+  value = var.tenant_id
+}
