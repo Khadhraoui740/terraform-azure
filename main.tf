@@ -3,6 +3,7 @@ locals {
 
   resource_group_name           = "${var.resource_group_name}${local.name_suffix}"
   snowflake_resource_group_name = "${var.snowflake_resource_group_name}${local.name_suffix}"
+  fabric_resource_group_name    = "${var.fabric_resource_group_name}${local.name_suffix}"
   databricks_workspace_name     = "${var.databricks_workspace_name}${local.name_suffix}"
   unity_catalog_metastore_name  = "${var.unity_catalog_metastore_name}${local.name_suffix}"
   # Storage account names allow only lowercase letters/digits, so append a
@@ -20,6 +21,13 @@ resource "azurerm_resource_group" "this" {
 
 resource "azurerm_resource_group" "snowflake" {
   name     = local.snowflake_resource_group_name
+  location = var.location
+}
+
+# --- Microsoft Fabric ---
+
+resource "azurerm_resource_group" "fabric" {
+  name     = local.fabric_resource_group_name
   location = var.location
 }
 
