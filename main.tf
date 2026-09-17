@@ -4,11 +4,14 @@ locals {
   resource_group_name           = "${var.resource_group_name}${local.name_suffix}"
   snowflake_resource_group_name = "${var.snowflake_resource_group_name}${local.name_suffix}"
   fabric_resource_group_name    = "${var.fabric_resource_group_name}${local.name_suffix}"
-  # Fabric capacity names allow only lowercase letters/digits, so append a
-  # plain "dev" instead of the hyphenated suffix used elsewhere.
-  fabric_capacity_name         = var.environment == "dev" ? "fabriccapacitydev" : "fabriccapacity"
-  databricks_workspace_name    = "${var.databricks_workspace_name}${local.name_suffix}"
-  unity_catalog_metastore_name = "${var.unity_catalog_metastore_name}${local.name_suffix}"
+  # Fabric capacity names are globally unique across all of Azure (like
+  # storage accounts), only allow lowercase letters/digits, and this
+  # subscription already had "fabriccapacitydev" taken by someone else, so
+  # derive a suffix from the subscription ID instead of guessing a free name.
+  fabric_capacity_unique_suffix = substr(sha1(var.subscription_id), 0, 6)
+  fabric_capacity_name          = "fabriccapacity${local.fabric_capacity_unique_suffix}${var.environment == "dev" ? "dev" : ""}"
+  databricks_workspace_name     = "${var.databricks_workspace_name}${local.name_suffix}"
+  unity_catalog_metastore_name  = "${var.unity_catalog_metastore_name}${local.name_suffix}"
   # Storage account names allow only lowercase letters/digits, so append a
   # plain "dev" instead of the hyphenated suffix used elsewhere.
   storage_account_name               = var.environment == "dev" ? "${var.storage_account_name}dev" : var.storage_account_name
