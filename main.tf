@@ -99,7 +99,7 @@ resource "azapi_resource" "fabric_capacity" {
   type      = "Microsoft.Fabric/capacities@2023-11-01"
   name      = local.fabric_capacity_name
   parent_id = azurerm_resource_group.fabric.id
-  location  = var.location
+  location  = var.fabric_capacity_location
 
   body = {
     properties = {
