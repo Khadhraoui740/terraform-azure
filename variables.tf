@@ -51,6 +51,12 @@ variable "fabric_capacity_sku" {
   default     = "F2"
 }
 
+variable "fabric_capacity_location" {
+  description = "Azure region for the Fabric Capacity. This subscription's Fabric capacity quota is 0 in eastus (used for var.location); westus2/centralus have quota, so the capacity is deployed there instead of alongside the other resources."
+  type        = string
+  default     = "westus2"
+}
+
 variable "fabric_capacity_admin_members" {
   description = "UPNs of the Azure AD users administering the Fabric Capacity. Must be accounts in the same tenant as the subscription."
   type        = list(string)
